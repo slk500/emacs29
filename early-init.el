@@ -16,7 +16,7 @@
 (global-set-key (kbd "C-c 2") (lambda() (interactive)(find-file "~/aamystuff/phprefactor/phprefactor.org")))
 (global-set-key (kbd "C-c 3") (lambda() (interactive)(find-file "~/aamystuff/life/life.org.gpg")))
 (global-set-key (kbd "C-c 4") (lambda() (interactive)(find-file "~/aamystuff/emacs/emacs.org")))
-(global-set-key (kbd "C-c i") (lambda() (interactive)(find-file "~/.emacs.d/myinit.org")))
+(global-set-key (kbd "C-c i") (lambda() (interactive)(find-file (expand-file-name "myinit.org" user-emacs-directory))))
 
 (blink-cursor-mode 0)
 (global-visual-line-mode)

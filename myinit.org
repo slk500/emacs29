@@ -1,4 +1,10 @@
 
+* simpleclip
+#+begin_src elisp
+  (use-package simpleclip)
+  (setq simpleclip-mode 1)
+
+#+end_src
 * dired
 #+begin_src elisp
   (setq dired-listing-switches "-alFh --group-directories-first")

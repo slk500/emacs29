@@ -14,7 +14,7 @@
       use-package-verbose t
       use-package-always-defer t)
 
-(org-babel-load-file (expand-file-name "~/.emacs.d/myinit.org"))
+(org-babel-load-file (expand-file-name "myinit.org" user-emacs-directory))
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -25,7 +25,7 @@
  '(custom-safe-themes
    '("02f57ef0a20b7f61adce51445b68b2a7e832648ce2e7efb19d217b6454c1b644" default))
  '(package-selected-packages
-   '(dired-subtree php-mode ivy-rich which-key counsel conunsel swiper doom-themes org-plus-contrib use-package)))
+   '(simpleclip dired-subtree php-mode ivy-rich which-key counsel conunsel swiper doom-themes org-plus-contrib use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
