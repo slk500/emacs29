@@ -1,63 +1,73 @@
 
-* simpleclip
+* buffer-local-keys
 #+begin_src elisp
-  (use-package simpleclip)
-  (setq simpleclip-mode 1)
+(defun buffer-local-set-key (key func)
+      (interactive "KSet key on this buffer: \naCommand: ")
+      (let ((name (format "%s-magic" (buffer-name))))
+        (eval
+         `(define-minor-mode ,(intern name)
+            "Automagically built minor mode to define buffer-local keys."))
+        (let* ((mapname (format "%s-map" name))
+               (map (intern mapname)))
+          (unless (boundp (intern mapname))
+            (set map (make-sparse-keymap)))
+          (eval
+           `(define-key ,map ,key func)))
+        (funcall (intern name) t)))
+#+end_src
+* command-log-mode
+#+begin_src elisp
+  (use-package command-log-mode)
+#+end_src
+* window move
+#+begin_src elisp
+(defadvice split-window (after move-point-to-new-window activate)
+  "Moves the point to the newly created window after splitting."
+  (other-window 1))
+#+end_src
+* indent
+#+begin_src elisp
+  (setq electric-indent-mode nil)
+#+end_src
+* org
+#+begin_src elisp
+  (use-package org
+   :straight
+   (:type built-in)
+   :config
+   (setq-default org-catch-invisible-edits 'error) ;; prevent deleting invisible text
+   (use-package org-bullets)
+   (add-hook 'org-mode-hook 'org-bullets-mode)
+   (add-hook 'org-mode-hook 'org-indent-mode)
+   (add-hook 'org-mode-hook 'visual-line-mode)
+   (use-package org-contrib)
+   (setq org-startup-folded t)
+   (setq org-log-into-drawer t)
+   (setq org-special-ctrl-a/e t) ;; ctrl a move to beginig of headline not line
+   (setq initial-major-mode 'org-mode)
+   (require 'org-tempo)
+   (require 'org-eldoc)
+   (global-eldoc-mode 1)
+   (setq org-src-tab-acts-natively t)
+   )
+#+end_src
+** babel
+#+begin_src elisp
+   (setq org-confirm-babel-evaluate nil)
+   (setq org-babel-default-header-args
+         (cons '(:results . "output silent")
+               (assq-delete-all :results org-babel-default-header-args)))
+   (setq org-structure-template-alist (assoc-delete-all "e" org-structure-template-alist))
+   (add-to-list 'org-structure-template-alist '("e" . "src elisp"))
+   (add-to-list 'org-structure-template-alist '("sh" . "src sh"))
+
+  (org-babel-do-load-languages
+   'org-babel-load-languages 
+   '((shell . t)
+     (clojure . t)))
 
 #+end_src
-* dired
-#+begin_src elisp
-  (setq dired-listing-switches "-alFh --group-directories-first")
-
-(use-package dired-subtree 
-  :after dired
-  :config
-  (bind-key "<tab>" #'dired-subtree-toggle dired-mode-map)
-  ;; Colourful columns.
-  (use-package diredfl
-    :config
-    (diredfl-global-mode 1)))
-
-(require 'dired-x)
-(add-hook 'dired-mode-hook (lambda () (dired-omit-mode)))
-
-(setq dired-omit-files
-      (rx (or (seq bol (? ".") "#")     ;; emacs autosave files
-              (seq bol "." (not (any "."))) ;; dot-files
-              (seq "~" eol)                 ;; backup-files
-              (seq bol "CVS" eol)           ;; CVS dirs
-              )))
-
-      (add-hook 'dired-mode-hook
-		(lambda ()
-		  (dired-hide-details-mode)
-					; make dired use the same buffer for viewing directory
-		  (define-key dired-mode-map (kbd "RET") 'dired-find-alternate-file) ; was dired-advertised-find-file
-		  (define-key dired-mode-map (kbd "^") (lambda () (interactive) (find-alternate-file "..")))  ; was dired-up-directory
-		  ))
-#+end_src
-* backup
-#+begin_src elisp
-  (setq
- ;; Don't clobber symlinks
- backup-by-copying t
- backup-directory-alist
- ;; Don't litter my fs tree
- '(("." . "~/.backups"))
- delete-old-versions t
- kept-new-versions 6
- kept-old-versions 2
- ;; Use versioned backups
- version-control t)
-#+end_src
-* babel
-#+begin_src elisp
-  (setq org-confirm-babel-evaluate nil)
-(setq org-babel-default-header-args
-      (cons '(:results . "value silent")
-            (assq-delete-all :results org-babel-default-header-args)))
-#+end_src
-** php
+*** php
 #+begin_src elisp
   (use-package php-mode)
   (defun org-babel-execute:php (body params)
@@ -67,152 +77,10 @@
     (org-babel-eval cmd body)
     ))
 #+end_src
-* journal
-#+begin_src elisp
-  (setq org-capture-templates
-      '(("j" "journal" entry (file+datetree "~/aamystuff/life/journal.gpg")
-         "* %?\n%U\n  %i\n")
-      ("d" "dreams" entry (file+datetree "~/aamystuff/life/dreams.gpg")
-        "* %?\n%U\n  %i\n")))
-(global-set-key (kbd "C-c c") 'org-capture)
-#+end_src
-* calendar
-#+begin_src elisp
-  (setq calendar-week-start-day 1)
-  (defun c () "Shortcut for CALENDAR (without any argument)" (interactive) (calendar))
-#+end_src
-* movement
-#+begin_src elisp
-  (global-set-key (kbd "M-o") 'other-window)
-#+end_src
-* history for searching
-#+begin_src elisp
-  (use-package prescient
-  :config
-  (setq-default history-length 1000)
-  (setq-default prescient-history-length 1000)
-  (prescient-persist-mode +1))
-
-(use-package ivy-prescient
-  :after ivy
-  :config
-  ;; don't prescient sort these commands
-  (dolist (command '(org-ql-view counsel-find-file fontaine-set-preset))
-    (setq ivy-prescient-sort-commands (append ivy-prescient-sort-commands (list command))))
-  (ivy-prescient-mode +1))
-#+end_src
-* text
-#+begin_src elisp
-  (use-package hungry-delete  
-  :config
-  (global-hungry-delete-mode))
-#+end_src
-* treemacs
-#+begin_src elisp
-  (use-package treemacs
-  :defer t
-  :init
-  (with-eval-after-load 'winum
-    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
-  :config
-  (progn
-    (setq treemacs-collapse-dirs              (if (executable-find "python") 3 0)
-          treemacs-deferred-git-apply-delay   0.5
-          treemacs-display-in-side-window     t
-          treemacs-file-event-delay           5000
-          treemacs-file-follow-delay          0.2
-          treemacs-follow-after-init          t
-          treemacs-follow-recenter-distance   0.1
-          treemacs-git-command-pipe           ""
-          treemacs-goto-tag-strategy          'refetch-index
-          treemacs-indentation                2
-          treemacs-indentation-string         " "
-          treemacs-is-never-other-window      nil
-          treemacs-max-git-entries            5000
-          treemacs-no-png-images              nil
-          treemacs-project-follow-cleanup     nil
-          treemacs-persist-file               (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
-          treemacs-recenter-after-file-follow nil
-          treemacs-recenter-after-tag-follow  nil
-          treemacs-show-cursor                nil
-          treemacs-show-hidden-files          t
-          treemacs-silent-filewatch           nil
-          treemacs-silent-refresh             nil
-          treemacs-sorting                    'alphabetic-asc
-          treemacs-space-between-root-nodes   t
-          treemacs-tag-follow-cleanup         t
-          treemacs-tag-follow-delay           1.5
-          treemacs-width                      35)
-
-    ;; The default width and height of the icons is 22 pixels. If you are
-    ;; using a Hi-DPI display, uncomment this to double the icon size.
-    ;;(treemacs-resize-icons 44)
-
-    (treemacs-follow-mode t)
-    (treemacs-filewatch-mode t)
-    (treemacs-fringe-indicator-mode t)
-    (pcase (cons (not (null (executable-find "git")))
-                 (not (null (executable-find "python3"))))
-      (`(t . t)
-       (treemacs-git-mode 'deferred))
-      (`(t . _)
-       (treemacs-git-mode 'simple))))
-  :bind
-  (:map global-map
-        ("M-0"       . treemacs-select-window)
-        ("C-x t 1"   . treemacs-delete-other-windows)
-        ("M-1"   . treemacs)
-        ("C-x t B"   . treemacs-bookmark)
-        ("C-x t C-t" . treemacs-find-file)
-        ("C-x t M-t" . treemacs-find-tag)))
-(use-package treemacs-projectile
-  :after treemacs projectile)
-#+end_src
-* auto
-#+begin_src  elisp
-  (use-package which-key
-    :config (which-key-mode))
-#+end_src
-* todo
-#+begin_src elisp
-  (setq org-todo-keywords
-        '(
-          (sequence "REPEAT" "DOING" "TODO" "NEXT" "WAITING" "SOMEDAY" "LOOKING-FOR" "DONE")
-          (sequence "|" "CANCELED(c)" "RECONSIDER(@)")
-          ))
-  
-  (setq org-log-done 'time)
-#+end_src
-* logbook
-#+begin_src elisp
-  (add-to-list 'org-log-note-headings '(note . "%t"))
-#+end_src
-* scratch buffer
-#+begin_src elisp
-  (setq initial-major-mode 'org-mode)
-#+end_src
-* gpg
-gpg --gen-key
-
-#+begin_src text
--*- mode: org -*- -*- epa-file-encrypt-to: ("slawomir.grochowski@gmail.com") -*-
-#+end_src
-
+*** path
 #+begin_src emacs-lisp
-(setq epg-gpg-home-directory "~/.gnupg")
-#+end_src
-* org
-#+begin_src elisp
-  (require 'org-tempo)
-  (setq org-special-ctrl-a/e t) ;; ctrl a move to beginig of headline not line
-  (use-package org-bullets)
-  (use-package org
-  :hook ((org-mode . org-indent-mode)
-         (org-mode . org-bullets-mode))
-  :config
-  (setq org-startup-folded t)
-  (setq-default org-catch-invisible-edits 'error)) ;; prevent deleting invisible text
-#+end_src
+(use-package  exec-path-from-shell)
+#+END_SRC
 ** agenda
 #+begin_src elisp
   (global-set-key "\C-ca" 'org-agenda)
@@ -254,14 +122,71 @@ gpg --gen-key
              ((alltodo "")))
             ))
 #+end_src
-
-#+RESULTS:
-| w | Weekly review        | agenda |   | ((org-agenda-start-day -14d) (org-agenda-span 14) (org-agenda-start-on-weekday 1) (org-agenda-start-with-log-mode '(closed)) (org-agenda-archives-mode t) (org-agenda-skip-function '(org-agenda-skip-entry-if 'notregexp ^\*\* DONE ))) |
-| n | Agenda and all TODOs | agenda |   | ((alltodo ))                                                                                                                                                                                                                             |
-
+** [[https://emacs.stackexchange.com/questions/39478/emacs-not-loading-org-agenda-files-on-startup][Emacs not loading org-agenda-files on startup]]
+* display ^l glyphs as horizontal lines
+#+begin_src elisp
+  (use-package form-feed)
+  (global-form-feed-mode)
+#+end_src
+* writing
+** spelling
+#+begin_src elisp
+  (global-set-key (kbd "C-c f") 'flyspell-correct-word-before-point)
+  (add-hook 'flyspell-mode-hook
+            (lambda ()
+              (setq flyspell-generic-check-word-predicate 'ignore-my-words)))
+  ;;(defun ignore-my-word )
+#+end_src
+*** TODO ignore emails
+https://superuser.com/questions/345084/how-to-exclude-in-flyspell-mode-and-flyspell-buffer/345461#345461
+** synonyms
+https://www.emacswiki.org/emacs/synonyms.el
+#+begin_src elisp
+  (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+  (require 'synonyms)
+  (setq synonyms-file (concat user-emacs-directory "dictionary/mthesaur.txt"))
+#+end_src
+* dictionary
+https://oremacs.com/2015/05/22/define-word/
+#+begin_src emacs-lisp
+(use-package define-word)
+(global-set-key (kbd "C-c d") 'define-word-at-point)
+(global-set-key (kbd "C-c D") 'define-word)
+#+end_src
+** TODO https://github.com/agzam/mw-thesaurus.el
+#+begin_src elisp
+  (use-package reverso
+    :straight (:host github :repo "SqrtMinusOne/reverso.el"))
+(setq reverso-languages '(english polish))
+#+end_src
+* bug tracker
+#+begin_src elisp
+(use-package debbugs)
+#+end_src
+* shortcuts
+#+begin_src emacs-lisp
+  (global-set-key (kbd "<f8>") 'visual-line-mode)
+  (global-set-key (kbd "<f5>") 'revert-buffer)
+  (global-set-key (kbd "<f9>") 'centered-window-mode)
+  (global-set-key (kbd "C-x 5") 'toggle-frame-split)
+  ; (global-unset-key (kbd "M-<space>"))
+#+END_SRC
+* center
+#+BEGIN_SRC emacs-lisp
+(use-package centered-window)
+#+END_SRC
+* music
+#+begin_src elisp
+  (use-package bongo
+  :ensure t :defer t
+  :init (progn
+          (setq bongo-default-directory "/media/slk/disk/Music"
+                bongo-confirm-flush-playlist nil
+                bongo-insert-whole-directory-trees nil)))
+  (global-set-key (kbd "C-c m") 'bongo)
+#+end_src
 * theme
 #+begin_src elisp
-  (setq custom-theme-allow-multiple-selections nil)
   (use-package doom-themes)
 
   (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
@@ -276,12 +201,274 @@ gpg --gen-key
 
   ;; Corrects (and improves) org-mode's native fontification.
   (doom-themes-org-config)
+
+  ;; (use-package jetbrains-darcula-theme
+  ;;   :straight (:host github :repo "ianpan870102/jetbrains-darcula-emacs-theme")
+  ;;   :custom
+  ;;   (add-to-list 'custom-theme-load-path "~/.emacs.d/straight/repos/jetbrains-darcula-emacs-theme/")
+  ;;   (load-theme 'jetbrains-darcula t))
+
+  ;;(enable-theme 'jetbrains-darcula)
+#+end_src
+* cursor
+#+begin_src elisp
+  (setq-default cursor-type 'hollow)
+  (add-hook 'after-init-hook
+            (lambda () (run-with-timer 1 nil #'set-cursor-color "#FDDA0D")))
+#+end_src
+* markdown
+  #+begin_src elisp
+(defun org-copy-region-as-markdown ()
+  "Copy the region (in Org) to the system clipboard as Markdown."
+  (interactive)
+  (if (use-region-p)
+      (let* ((region
+	      (buffer-substring-no-properties
+		      (region-beginning)
+		      (region-end)))
+	     (markdown
+	      (org-export-string-as region 'md t '(:with-toc nil))))
+	(gui-set-selection 'CLIPBOARD markdown))))
+  #+end_src
+* tags
+https://www.reddit.com/r/orgmode/comments/pk7q1z/how_to_remove_a_tag_from_a_headline_in_org/
+* copy/paste
+#+begin_src elisp
+  (defun my-copy-to-next-window (b e)
+  "Copy text in the region to next window."
+  (interactive "r")
+  (pcase (window-list)
+    (`(,w0 ,w1)
+     (with-selected-window w1
+       (insert-buffer-substring (window-buffer w0) b e)))
+    (t (user-error "Only works with 2 windows"))))
+#+end_src
+** whole line
+#+begin_src elisp
+  (use-package whole-line-or-region)
+#+end_src
+* dictionary
+https://github.com/SqrtMinusOne/reverso.el
+* count
+#+begin_src elisp
+  (global-set-key (kbd "M-=") #'count-words)
+#+end_src
+* irc
+#+begin_src elisp
+  (require 'erc-services)
+  (erc-services-mode 1)
+  (setq erc-prompt-for-nickserv-password nil)
+  (setq erc-nickserv-passwords
+        '((irc.libera.chat (("slk500" . "DYUTsS88Cc4tt")))))
+
+  (defun irc () "my irc" (interactive) (erc :server "irc.libera.chat" :port 6667 :nick "slk500" :password "DYUTsS88Cc4tt"))
+
+  (setq erc-autojoin-channels-alist
+        '(( "#emacs" "#systemcrafters")))
+
+  (setq erc-hide-list '("JOIN" "PART" "QUIT"))
+
+
+  (setq rcirc-default-nick "slk500")
+ ;; (setq rcirc-authinfo '(("libera" nickserv "slk500" "DYUTsS88Cc4tt")))
+  (setq rcirc-server-alist '((
+                                   "irc.libera.chat"
+                                   :channels ("#emacs")
+                                   :port 6697
+                                   :encryption tls)))
+#+end_src
+* simpleclip
+#+begin_src elisp
+;  (use-package simpleclip)
+;  (setq simpleclip-mode 1)
+#+end_src
+* dired
+#+begin_src elisp
+    (use-package dired
+      :straight (:type built-in)
+      :custom ((dired-listing-switches "-alFh --group-directories-first")
+               (dired-dwim-target t)
+               (delete-by-moving-to-trash t)))
+
+
+  (setq split-width-threshold 80) ;If this is an integer, split-window-sensibly may split a window horizontally only if it has at least this many columns.
+
+    (use-package dired-subtree 
+      :after dired
+      :config
+      (bind-key "<tab>" #'dired-subtree-toggle dired-mode-map)
+      ;; Colourful columns.
+      (use-package diredfl
+        :config
+        (diredfl-global-mode 1)))
+
+    (require 'dired-x)
+    (add-hook 'dired-mode-hook (lambda () (dired-omit-mode)))
+
+    (setq dired-omit-files
+          (rx (or (seq bol (? ".") "#")     ;; emacs autosave files
+                  (seq bol "." (not (any "."))) ;; dot-files
+                  (seq "~" eol)                 ;; backup-files
+                  (seq bol "CVS" eol)           ;; CVS dirs
+                  )))
+
+          (add-hook 'dired-mode-hook
+                    (lambda ()
+                      (dired-hide-details-mode)
+                                            ; make dired use the same buffer for viewing directory
+                      (define-key dired-mode-map (kbd "RET") 'dired-find-alternate-file) ; was dired-advertised-find-file
+                      (define-key dired-mode-map (kbd "^") (lambda () (interactive) (find-alternate-file "..")))  ; was dired-up-directory
+                      ))
+#+end_src
+* backup
+#+begin_src elisp
+  (setq
+ ;; Don't clobber symlinks
+ backup-by-copying t
+ backup-directory-alist
+ ;; Don't litter my fs tree
+ '(("." . "~/.backups"))
+ delete-old-versions t
+ kept-new-versions 6
+ kept-old-versions 2
+ ;; Use versioned backups
+ version-control t)
+#+end_src
+* journal
+#+begin_src elisp
+  (setq org-capture-templates
+      '(("j" "journal" entry (file+datetree "~/aamystuff/life/journal.gpg")
+         "* %?\n%U\n  %i\n")
+      ("d" "dreams" entry (file+datetree "~/aamystuff/life/dreams.gpg")
+        "* %?\n%U\n  %i\n")))
+(global-set-key (kbd "C-c c") 'org-capture)
+#+end_src
+* calendar
+#+begin_src elisp
+  (setq calendar-week-start-day 1)
+  (defalias 'cc 'calendar)
+#+end_src
+* movement
+#+begin_src elisp
+  (global-set-key (kbd "M-o") 'other-window)
+#+end_src
+* history for searching
+#+begin_src elisp
+  (use-package prescient
+    :config
+    (setq-default history-length 1000)
+    (setq-default prescient-history-length 1000)
+    (prescient-persist-mode +1))
+  
+  (use-package ivy-prescient
+    :after ivy
+    :config
+    ;; don't prescient sort these commands
+    (dolist (command '(org-ql-view counsel-find-file fontaine-set-preset))
+      (setq ivy-prescient-sort-commands (append ivy-prescient-sort-commands (list command))))
+    (ivy-prescient-mode +1))
+#+end_src
+* treemacs
+#+begin_src elisp
+  (use-package treemacs
+    :defer t
+    :init
+    (with-eval-after-load 'winum
+      (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+    :config
+    (progn
+      (setq treemacs-collapse-dirs              (if (executable-find "python") 3 0)
+            treemacs-deferred-git-apply-delay   0.5
+            treemacs-display-in-side-window     t
+            treemacs-file-event-delay           5000
+            treemacs-file-follow-delay          0.2
+            treemacs-follow-after-init          t
+            treemacs-follow-recenter-distance   0.1
+            treemacs-git-command-pipe           ""
+            treemacs-goto-tag-strategy          'refetch-index
+            treemacs-indentation                2
+            treemacs-indentation-string         " "
+            treemacs-is-never-other-window      nil
+            treemacs-max-git-entries            5000
+            treemacs-no-png-images              nil
+            treemacs-project-follow-cleanup     nil
+            treemacs-persist-file               (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+            treemacs-recenter-after-file-follow nil
+            treemacs-recenter-after-tag-follow  nil
+            treemacs-show-cursor                nil
+            treemacs-show-hidden-files          t
+            treemacs-silent-filewatch           nil
+            treemacs-silent-refresh             nil
+            treemacs-sorting                    'alphabetic-asc
+            treemacs-space-between-root-nodes   t
+            treemacs-tag-follow-cleanup         t
+            treemacs-tag-follow-delay           1.5
+            treemacs-width                      35)
+
+      ;; The default width and height of the icons is 22 pixels. If you are
+      ;; using a Hi-DPI display, uncomment this to double the icon size.
+      ;;(treemacs-resize-icons 44)
+
+      (treemacs-follow-mode t)
+      (treemacs-filewatch-mode t)
+      (treemacs-fringe-indicator-mode t)
+      (pcase (cons (not (null (executable-find "git")))
+                   (not (null (executable-find "python3"))))
+        (`(t . t)
+         (treemacs-git-mode 'deferred))
+        (`(t . _)
+         (treemacs-git-mode 'simple))))
+    :bind
+    (:map global-map
+          ("M-0"       . treemacs-select-window)
+          ("C-x t 1"   . treemacs-delete-other-windows)
+          ("M-1"   . treemacs)
+          ("C-x t B"   . treemacs-bookmark)
+          ("C-x t C-t" . treemacs-find-file)
+          ("C-x t M-t" . treemacs-find-tag)))
+#+end_src
+* auto
+#+begin_src  elisp
+  (use-package which-key
+    :config (which-key-mode))
+#+end_src
+* todo
+#+begin_src elisp
+  (setq org-todo-keywords
+        '(
+          (sequence "REPEAT" "DOING" "TODO" "NEXT" "WAITING" "SOMEDAY" "LOOKING-FOR" "DONE")
+          (sequence "|" "CANCELED(c)" "RECONSIDER(@)")
+          ))
+  
+  (setq org-log-done 'time)
+#+end_src
+* logbook
+#+begin_src elisp
+  (add-to-list 'org-log-note-headings '(note . "%t"))
+#+end_src
+* gpg
+gpg --gen-key
+
+#+begin_src text
+-*- mode: org -*- -*- epa-file-encrypt-to: ("slawomir.grochowski@gmail.com") -*-
+#+end_src
+
+#+begin_src emacs-lisp
+(setq epg-gpg-home-directory "~/.gnupg")
+#+end_src
+** authinfo
+#+begin_src elisp
+  (setq auth-source-debug t)
+  (setq auth-sources
+        '((:source "~/aamystuff/.authinfo.gpg")))
 #+end_src
 * swiper
 #+begin_src elisp
+  (use-package counsel)
   (use-package swiper      
     :bind    
-    (("C-f" . swiper)    
+    (
+     ("C-f" . swiper)    
      ("M-x" . counsel-M-x)   
      ("C-x b" . ivy-switch-buffer)  
      ("C-x f" . counsel-find-file)    
@@ -290,9 +477,11 @@ gpg --gen-key
      ("C-c C-r" . ivy-resume))
     :config  
     (ivy-mode 1)
-    (setq ivy-use-virtual-buffers t)    
+    (setq ivy-use-virtual-buffers t)
     (setq ivy-count-format "(%d/%d) ")
-    (use-package counsel))
+    (ivy-configure 'counsel-M-x
+      :initial-input "^"
+      :display-transformer-fn #'counsel-M-x-transformer))
 
   (use-package ivy-rich)
   (ivy-rich-mode 1)
@@ -307,7 +496,6 @@ gpg --gen-key
   (setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
 
   (setq scroll-step 1) ;; keyboard scroll one line at a time
-  
 #+end_src
 * paste link
 #+begin_src elisp
