@@ -1,20 +1,24 @@
-(require 'package)
-(add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
-(package-initialize)
+(setq package-enable-at-startup nil)
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 6))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+(straight-use-package 'use-package)
+(setq straight-use-package-by-default t)
 
-(require 'use-package-ensure) ;;must have to work :ensure does not work with byte-compiled .emacs https://github.com/jwiegley/use-package/issues/839
-(setq use-package-always-pin  "melpa"
-      use-package-always-ensure t
-      use-package-compute-statistics t
-      use-package-verbose t
-      use-package-always-defer t)
+(add-to-list 'default-frame-alist '(font . "DejaVu Sans Mono 20" ))
 
 (org-babel-load-file (expand-file-name "myinit.org" user-emacs-directory))
+
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -23,12 +27,13 @@
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(doom-one))
  '(custom-safe-themes
-   '("02f57ef0a20b7f61adce51445b68b2a7e832648ce2e7efb19d217b6454c1b644" default))
+   '("e9d47d6d41e42a8313c81995a60b2af6588e9f01a1cf19ca42669a7ffd5c2fde" "7a424478cb77a96af2c0f50cfb4e2a88647b3ccca225f8c650ed45b7f50d9525" "02f57ef0a20b7f61adce51445b68b2a7e832648ce2e7efb19d217b6454c1b644" default))
+ '(org-catch-invisible-edits 'error)
  '(package-selected-packages
-   '(simpleclip dired-subtree php-mode ivy-rich which-key counsel conunsel swiper doom-themes org-plus-contrib use-package)))
+   '(eev debbugs centered-window bongo diredfl simpleclip dired-subtree php-mode ivy-rich which-key counsel conunsel swiper doom-themes org-plus-contrib use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(fringe ((t (:background "#282c34")))))
